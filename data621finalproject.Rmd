@@ -1,0 +1,19 @@
+---
+title: "DATA621 FINAL PROJECT"
+author: "Group 5"
+date: "11/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#### Read the dataset
+```{r}
+library(haven)
+dataset <- read_sas('acbs_2016_adult_public_llcp.sas7bdat', NULL)
+View(dataset)
+```
+
