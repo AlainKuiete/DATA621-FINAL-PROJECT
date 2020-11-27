@@ -1,0 +1,559 @@
+---
+title: "Final Project"
+author: "G5"
+date: "11/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(psych)
+#library(DataExplorer)
+library(GGally)
+library(corrplot)
+library(DMwR)
+library(caret)
+library(VIM)
+library(glmnet)
+library(doParallel)
+library(xgboost) 
+library(mice)
+library(data.table)
+library(kableExtra)
+#Please add any new required packages here:
+```
+
+
+
+
+```{r}
+library(haven)
+asthma.child <- read_sas("acbs_2016_child_public_llcp.sas7bdat")
+View(asthma.child)
+```
+
+```{r}
+#write.csv(asthma.child, "asthma_child.csv")
+cn <- colnames(asthma.child)
+write.csv(cn, "asthma_column_name.csv")
+```
+
+```{r}
+
+```
+
+
+
+
+## EXPLORATORY DATA ANALYSIS
+
+```{r}
+
+```
+
+### CONSTRUCT THE RESPONSE VARIABLE
+We first extract variables related to education, 
+#### Selection of variables
+```{r}
+responses <- data.frame(
+                        TCH.SIGN = asthma.child$TCH_SIGN, 
+                        TCH.RESP = asthma.child$TCH_RESP,
+                        TCH.MON = asthma.child$TCH_MON,
+                        MGT.PLAN = asthma.child$MGT_PLAN,
+                        MGT.CLAS = asthma.child$MGT_CLAS,
+                        INHALERW = asthma.child$INHALERW,
+                        MOD.ENV = asthma.child$MOD_ENV
+                        )
+head(responses)
+```
+Exploration
+```{r}
+responses.cat <- data.frame(apply(responses, 2, as.factor))
+summary(responses.cat)
+```
+
+
+
+
+```{r}
+# Initialize total within sum of squares error: wss
+wss <- 0
+
+# Look over 1 to 15 possible clusters
+for (i in 1:16) {
+  # Fit the model: km.out
+  km.out <- kmeans(responses.cat, centers = i, nstart = 20, iter.max = 50)
+  # Save the within cluster sum of squares
+  wss[i] <- km.out$tot.withinss
+}
+
+# Produce a scree plot
+plot(1:16, wss, type = "b", 
+     xlab = "Number of Clusters", 
+     ylab = "Within groups sum of squares")
+```
+
+
+```{r}
+# Select number of clusters
+k <- 9
+```
+
+
+
+```{r}
+set.seed(2)
+# Build model with k clusters: km.out
+km.out <- kmeans(responses, centers = k, nstart = 20, iter.max = 50)
+
+# View the resulting model
+km.out$centers
+
+```
+
+
+##### add the point classification to the original data
+```{r}
+resp.asthma <- cbind(responses.cat, target = km.out$cluster)
+head(resp.asthma)
+write.csv(resp.asthma, "response_interpret.csv")
+```
+
+
+```{r}
+resp.asthma$target <- as.factor(resp.asthma$target)
+```
+
+
+
+
+```{r}
+summary(resp.asthma)
+```
+
+```{r}
+plot(resp.asthma$target)
+```
+### INTERPRETATION OF ASTHMA RESPONSE CLUSTERING
+#### WITH TCH.SIGN
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by(TCH.SIGN, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab1 <- evar %>% 
+  group_by(TCH.SIGN) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab1
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = TCH.SIGN, linetype = TCH.SIGN)) + geom_line()
+```
+
+
+#### WITH TCH.RESP
+```{r}
+evar <- resp.asthma %>% 
+  group_by(TCH.RESP, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+
+
+```{r}
+tab2 <- evar %>% 
+  group_by(TCH.RESP) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab2
+```
+
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = TCH.RESP, linetype = TCH.RESP)) + geom_line()
+```
+
+
+
+#### WITH TCH.MON
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by(TCH.MON, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab3 <- evar %>% 
+  group_by(TCH.MON) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab3
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = TCH.MON, linetype = TCH.MON)) + geom_line()
+```
+
+
+#### WITH MGT.PLAN
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by(MGT.PLAN, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab4 <- evar %>% 
+  group_by(MGT.PLAN) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab4
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = MGT.PLAN, linetype = MGT.PLAN)) + geom_line()
+```
+
+
+#### WITH MGT.CLAS
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by(MGT.CLAS, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab5 <- evar %>% 
+  group_by(MGT.CLAS) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab5
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = MGT.CLAS, linetype = MGT.CLAS)) + geom_line()
+```
+
+
+#### WITH INHALERW 
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by(INHALERW, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab6 <- evar %>% 
+  group_by(INHALERW ) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab6
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group = INHALERW , linetype = INHALERW)) + geom_line()
+```
+
+
+#### WITH  MOD.ENV
+
+```{r}
+evar <- resp.asthma %>% 
+  group_by( MOD.ENV, target) %>%
+  summarize(COUNT = n()) %>% 
+  mutate(ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+evar
+```
+
+```{r}
+tab7 <- evar %>% 
+  group_by( MOD.ENV) %>% 
+  mutate(MAX.COUNT = max(COUNT)) %>%
+  filter(COUNT==MAX.COUNT)
+tab7
+```
+
+```{r}
+ggplot(evar, aes(x = target, y = PROPORTION, group =  MOD.ENV, linetype =  MOD.ENV)) + geom_line()
+```
+
+
+#### Recapitulating the asthma self-management interpretation
+```{r}
+trecap <- data.frame(RESPONSE = c("1=YES", "2=NO", "7=DONT KNOW", "9=REFUSED"),
+                     TCH.SIGN = tab1$target,
+                     TCH.RESP = tab2$target,
+                     TCH.MON = tab3$target,
+                     MGT.PLAN = tab4$target,
+                     MGT.CLAS = tab5$target,
+                     INHALERW = tab6$target[-c(3)],
+                     MOD.ENV = tab7$target
+                     )
+trecap
+```
+
+
+
+ASTHNOW Have you ever been told by a doctor or other health professional that you have
+asthma?
+
+TCH_SIGN  Has a doctor or other health professional ever taught you...
+a. How to recognize early signs or symptoms of an asthma episode?
+
+TCH_RESP Has a doctor or other health professional ever taught you...
+b. What to do during an asthma episode or attack?
+
+TCH_MON A peak flow meter is a hand held device that measures how quickly you can blow air
+out of your lungs. Has a doctor or other health professional ever taught you…
+c. How to use a peak flow meter to adjust your daily medications?
+
+MGT_PLAN An asthma action plan, or asthma management plan, is a form with instructions
+about when to change the amount or type of medicine, when to call the doctorfor
+advice, and when to go to the emergency room.
+Has a doctor or other health professional EVER given you an asthma action plan?
+
+MGT_CLAS Have you ever taken a course or class on how to manage your asthma?
+
+INHALERH (8.3) Did a doctor or other health professional show you how to use the inhaler?
+
+INHALERW (8.4) Did a doctor or other health professional watch you use the inhaler?
+
+Responses types
+(1) YES
+(2) NO
+(7) DON’T KNOW
+(9) REFUSED
+
+Predictors
+
+MISS_DAY = "NUMBER OF MISSED DAYS"
+MOD_ENV = "EVER ADVISED CHANGE THINGS IN YOUR HOME"
+AGEDX = "AGE AT ASTHMA DIAGNOSIS"
+AGEG_F6_M = "MODIFIED SIX AGE GROUPS USED IN ASTHMA child POST-STRATIFICATION"
+AIRCLEANER = "AIR CLEANER USED"
+ASMDCOST = "COST BARRIER: PRIMARY CARE DOCTOR"
+ASRXCOST = "COST BARRIER: MEDICATION"
+ASSPCOST = "COST BARRIER: SPECIALIST"
+CATTMPTS_F = "DISPOSITION CODES FOR CALL ATTEMPTS 1 THROUGH 20 ..."
+EMP_STAT = "CURRENT EMPLOYMENT STATUS"
+EPIS_12M = "ASTHMA EPISODE OR ATTACK"
+EPIS_TP = "NUMBER OF EPISODES / ATTACKS"
+ER_TIMES = "NUMBER OF EMERGENCY ROOM VISITS"
+ER_VISIT = "EMERGENCY ROOM VISIT"
+EVER_ASTH = "EVER HAVE ASTHMA INCONSISTENT WITH BRFSS"
+#FLAG1 = "FLAG FOR AGE, AGEDX, INCIDNT INCONSISTENCY"
+HOSPPLAN = "HOSPITAL FOLLOW-UP"
+HOSPTIME = "NUMBER OF HOSPITAL VISITS"
+HOSP_VST = "HOSPITAL VISIT"
+QSTLANG_F = "LANGUAGE IDENTIFIER"
+SCR_MED3 = "HAVE ALL THE MEDICATIONS"
+#SEQNO = "ANNUAL SEQUENCE NUMBER"
+UNEMP_R = "REASON NOT NOW EMPLOYED"
+URG_TIME = "NUMBER OF URGENT VISITS"
+WORKENV5 = "ASTHMA AGGRAVATED BY CURRENT JOB"
+WORKENV6 = "ASTHMA CAUSED BY CURRENT JOB"
+WORKENV7 = "ASTHMA AGGRAVATED BY PREVIOUS JOB"
+WORKENV8 = "ASTHMA CAUSED BY PREVIOUS JOB"
+WORKQUIT1 = "EVER CHANGE OR QUIT A JOB"
+WORKSEN3 = "DOCTOR DIAGNOSED WORK ASTHMA"
+WORKSEN4 = "SELF-IDENTIFIED WORK ASTHMA"
+WORKTALK = "DOCTOR DISCUSSED WORK ASTHMA"
+INS1 = "INSURANCE"
+INS2 = "INSURANCE OR COVERAGE GAP"
+LANDWT_F = "FINAL child ASTHMA CALL-BACK WEIGHT"
+LASTSYMP = "LAST HAD ANY SYMPTOMS OF ASTHMA"
+LAST_MD = "LAST TALKED TO A DOCTOR"
+LAST_MED = "LAST TOOK ASTHMA MEDICATION"
+LLCPWT_F  = "child ASTHMA FINAL WEIGHT"
+RACEG_F = "RACE COLLAPSED TO 1 GROUP FOR ASTHMA CALL-BACK"
+REGION_F = "REGIONS COLLAPSED TO 1 REGION FOR ASTHMA CALL-BACK.
+COMPASTH = "TYPICAL ATTACK"
+
+
+
+### Constructing the data frame by selecting predictors
+
+```{r}
+asthma.mgt.child1 <- data.frame(TARGET = resp.asthma$target,
+                                SEX = asthma.child$SEX,
+                                AGEG6 = asthma.child[,"_AGE_G"],
+                                RACE = asthma.child[, "_RACEGR3"],
+                                EDUCAL = asthma.child$EDUCA,
+                                INCOMEL = asthma.child$INCOME2,
+                                RFBMIS = asthma.child[, "_RFBMI5"],
+                                SMOKE100 = asthma.child$SMOKE100,
+                                SYMP.30D = asthma.child$SYMP_30D,
+                                DUR.30D = asthma.child$DUR_30D,
+                                ASLEEP30 = asthma.child$ASLEEP30,
+                                INCINDT = asthma.child$INCIDNT,
+                                LAST.MD = asthma.child$LAST_MD,
+                                LAST.MED = asthma.child$LAST_MED,
+                                LAST.SYMP = asthma.child$LASTSYMP,
+                                EPIS.12M = asthma.child$EPIS_12M,
+                                EPIS.TP = asthma.child$EPIS_TP,
+                                DUR.ASTH = asthma.child$DUR_ASTH,
+                                COMPASTH = asthma.child$COMPASTH,
+                                INS1 = asthma.child$INS1,
+                                INS2 = asthma.child$INS2,
+                                ER.TIMES = asthma.child$ER_TIMES,
+                                ER.VISIT = asthma.child$ER_VISIT,
+                                URG.TIMES = asthma.child$URG_TIME,
+                                HOSP.VST = asthma.child$HOSP_VST,
+                                HOSPTIME = asthma.child$HOSPTIME,
+                                HOSPPLAN = asthma.child$HOSPPLAN,
+                                ASMDCOST = asthma.child$ASMDCOST,
+                                ASRXCOST = asthma.child$ASRXCOST,
+                                ASSPCOST = asthma.child$ASSPCOST
+                                )
+```
+
+
+
+
+
+
+```{r}
+head(asthma.mgt.child1)
+```
+
+
+
+Structure
+```{r}
+str(asthma.mgt.child1)
+attach(asthma.mgt.child1)
+```
+
+
+Summary
+```{r}
+summary(asthma.mgt.child1)
+```
+
+
+
+### Univariate 
+
+### EXPLORE THE DATA
+Histogram of the target variable
+```{r}
+ggplot(data=asthma.mgt.child1, aes(x=TARGET)) + geom_bar()
+```
+### We look over the predictors distribution
+```{r}
+par(mfrow = c(2,4))
+for (x in colnames(asthma.mgt.child1)[-1]){
+  boxplot(asthma.mgt.child1[,x],main=x)
+}
+```
+
+#### Histograms       
+Histograms tell us how the data is distributed in the dataset (numeric fields).    
+
+```{r, message = FALSE, warning = FALSE, echo = F}
+multi.hist(asthma.mgt.child1[2:9])
+multi.hist(asthma.mgt.child1[10:17])
+multi.hist(asthma.mgt.child1[18:25])
+multi.hist(asthma.mgt.child1[25:30])
+```
+
+
+#### The correlations betweeen predictors
+
+```{r}
+cor_asthma.child <- cor(asthma.mgt.child1[,-1], use = "na.or.complete")
+corrplot(cor_asthma.child, order = 'hclust', type = 'lower')
+```
+
+```{r}
+# cor(asthma.mgt.child1[,-1], use = "na.or.complete")
+# write.csv(cor(asthma.mgt.child1[,-1], use = "na.or.complete"), "predictors_cor.csv")
+```
+We are removing the predictor X_BMISCAT because it has to much missing values 
+There are highly correlated predictors. We are going to remove some of them.
+```{r}
+# asthma.mgt.child2 <- select(asthma.mgt.child1, -EPIS.TP, -HOSPPLAN, -ASSPCOST, -ASMDCOST, -ER.VISIT, DUR.ASTH)
+# colnames(asthma.mgt.child2)
+```
+
+
+
+
+### Divers Correlations with the response variable
+
+
+```{r}
+ggplot(asthma.mgt.child1, aes(x=EDUCAL, y=COMPASTH, color = TARGET)) + geom_point(position = position_jitter(), alpha=.3) + facet_grid(rows = vars(SEX), cols = vars(X_RACEGR3))
+```
+
+```{r}
+ggplot(asthma.mgt.child1, aes(x=X_AGE_G, y=LAST.SYMP, color = TARGET)) +
+  geom_point() +
+  facet_grid(rows = vars(SEX), cols = vars(X_RACEGR3))
+```
+
+Relationship between the target variable and the predictor
+```{r}
+egt <- summarize(group_by(asthma.mgt.child1, EDUCAL, TARGET), COUNT = n())
+egt <- mutate(egt, ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+ggplot(egt, aes(x=EDUCAL, y=PROPORTION, group = TARGET, linetype = TARGET)) + geom_line()
+```
+
+Relationship between the target variable and the predictor
+```{r}
+egt <- summarize(group_by(asthma.mgt.child1, X_RACEGR3, TARGET), COUNT = n())
+egt <- mutate(egt, ETOTAL = sum(COUNT), PROPORTION = COUNT/ETOTAL)
+ggplot(egt, aes(x=X_RACEGR3, y=PROPORTION, group = TARGET, linetype = TARGET)) + geom_line()
+```
+
+
+
+
+
+### PREPARE THE DATA FOR MODELISATION
+
+#### We remove the rows with missing values.
+Here were are going to drop missing data because they are only 12  over 13,922 rows.
+We also transform all predictors to categorical.
+```{r}
+asthma.mgt.child2 <- drop_na(asthma.mgt.child2)
+asthma.mgt.child2 <- data.frame(apply(asthma.mgt.child2, 2, as.factor))
+summary(asthma.mgt.child2)
+```
+
+
+### BUILDS MODELS
+
+
+### SELECT MODELS
+
+
+### APPLY THE MODELS TO A DIFFERENT DATASET
+
+
+
+
+
+
