@@ -6,6 +6,13 @@ output:
   word_document: default
   html_document: default
 ---
+## OVERVIEW
+
+The self-management of asthma help improve patient health. 
+Asthma self-management provide to the patient and caregivers the skills to understand the disease and its treatment.
+It teaches them to take medications appropriately, recognize early signs and symptoms of asthma episodes, seek medical care as appropriate, and identify and avoid environmental asthma allergens and irritants 
+In this project, we study the characteristics that influence asthma self-management.
+
 
 ```{r eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 knitr::opts_chunk$set(echo = TRUE)
