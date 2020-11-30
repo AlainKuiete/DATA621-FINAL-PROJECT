@@ -598,7 +598,7 @@ ggplot(data=egt, aes(x=DUR.ASTH, y=proportion, group=TARGET, linetype=TARGET))+g
 ```{r}
 library(caret)
 set.seed(25)
-inTraining <- createDataPartition(asth.mgt.ad.min35$TARGET, p = .75, list = FALSE)
+inTraining <- createDataPartition(asth.mgt.ad.min35$TARGET, p = .80, list = FALSE)
 training1 <- asth.mgt.ad.min35[ inTraining,]
 testing1  <- asth.mgt.ad.min35[-inTraining,]
 ```
@@ -682,7 +682,7 @@ Lasso Regression keeps only the most significant variables and gives zero to the
 #### Split the data into trainset and testingset, Dumy code categorical predictors
 ```{r}
 set.seed(25)
-inTraining <- createDataPartition(asth.mgt.ad.min33$TARGET, p = .75, list = FALSE)
+inTraining <- createDataPartition(asth.mgt.ad.min33$TARGET, p = .80, list = FALSE)
 training2 <- asth.mgt.ad.min33[ inTraining,]
 testing2  <- asth.mgt.ad.min33[-inTraining,]
 x <- model.matrix(TARGET ~., data = training2)
@@ -819,6 +819,70 @@ AICc(ridge.model1)
 AICc(lasso.model1)
 ```
 
+#### Partial Least Squared
+```{r}
+ctrl <- trainControl(method = "repeatedcv", repeats = 3)
+
+plsFit1 <- train(
+  TARGET ~ .,
+  data = training1,
+  method = "pls",
+  preProc = c("center", "scale"),
+  tuneLength = 15,
+  ## added:
+  trControl = ctrl
+)
+```
+
+#### Confusion Matrix with best lambda
+```{r}
+pls1.pred <- predict(plsFit1, newdata = testing1[,-1], type = "prob")
+pls.pred1 <- predict(plsFit1, newdata = testing1[,-1], type = "raw")
+pls.cm1 <- confusionMatrix(data = pls.pred1, testing1$TARGET, positive = '1')
+pls.cm1
+
+```
+
+```{r}
+training3 <- training1
+testing3 <- testing1
+training3$TARGET <- ifelse(training3$TARGET=="1","T","F")
+testing3$TARGET <- ifelse(testing3$TARGET=="1","T","F")
+```
+
+
+
+#### Here we train the model with partial least square using tune parameter.
+```{r}
+ctrl <- trainControl(
+  method = "repeatedcv", 
+  repeats = 3,
+  classProbs = TRUE, 
+  summaryFunction = twoClassSummary
+)
+
+set.seed(123)
+plsFit2 <- train(
+  TARGET ~ .,
+  data = training3,
+  method = "pls",
+  preProc = c("center", "scale"),
+  tuneLength = 15,
+  trControl = ctrl,
+  metric = "ROC"
+)
+plsFit2
+```
+
+#### Confusion Matrix with best lambda
+```{r}
+pls2.pred <- predict(plsFit2, newdata = testing3[,-1], type = "prob")
+pls.pred2 <- predict(plsFit2, newdata = testing3[,-1], type = "raw")
+pls.cm2 <- confusionMatrix(data = pls.pred1, testing1$TARGET, positive = '1')
+pls.cm2
+
+```
+
 
 ### SELECT MODELS
 #### We compare the models with the accuray, precision, sensitivity, specificity, and F1 score from the confusion matrix
@@ -840,22 +904,33 @@ metrics.mod <- data.frame(#glm.mod = cm.metric(glm.cm),
                           ridge.mod1 = cm.metric(ridge.cm1),
                           ridge.mod2 = cm.metric(ridge.cm2),
                           lasso.mod1 = cm.metric(lasso.cm1),
-                          lasso.mod2 = cm.metric(lasso.cm2))
+                          lasso.mod2 = cm.metric(lasso.cm2),
+                          pls.mod1 = cm.metric(pls.cm1),
+                          pls.mod2 = cm.metric(pls.cm2))
 metrics.mod
 ```
+
+With precision and specificity equal to 1, the ridge.mod2 model is overfitting. But glm.mod12 has the best accuracy, precision, sensivity, and specificity.
 
 ### Using pROC package. 
 We can plot the ROC curve and extract the AUC value.
 ```{r}
 library(pROC)
 library(dplyr)
-prediction1 <- data.frame(TARGET = testing1$TARGET, glm11.pred, glm12.pred)
-prediction2 <- data.frame(pr1 = ridge.pred1, rp2 = ridge.pred2, rp1 = lasso.pred1, rp2 = lasso.pred2)
-prediction <- cbind(prediction1, prediction2[-1,])
+prediction <- data.frame(TARGET = testing1$TARGET,
+                         glm1 = glm11.pred, 
+                         gml2 = glm12.pred, 
+                         pls1 = pls1.pred,
+                         pls2 = pls2.pred,
+                         rp1 = ridge.pred1, 
+                         rp2 = ridge.pred2, 
+                         lp1 = lasso.pred1, 
+                         lp2 = lasso.pred2)
+
 ```
 
 ```{r}
-
+prediction[1:10,]
 ```
 
 
@@ -866,11 +941,21 @@ library(ggplot2)
 roc1 <- roc(TARGET ~., data = prediction)
 ggroc(roc1)
 ```
+The glm model has the best Area Under the Curve.
 
+### We run the glm model with the entire dataset
 
+#### Second glm model
+```{r}
+best.model <-  glm(formula = TARGET ~ SEX + AGEG.F7 + X_RACEGR3 + EDUCAL + X_INCOMG + 
+    BRONCH + DUR.30D + INCINDT + LAST.MD + LAST.MED + LAST.SYMP + 
+    COMPASTH + WORKTALK, family = binomial, data = asth.mgt.ad.min35)
+summary(best.model)
+```
 
-
-### APPLY THE MODELS TO A DIFFERENT DATASET
+```{r}
+exp(coef(best.model))
+```
 
 
 
