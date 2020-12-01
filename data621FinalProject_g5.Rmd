@@ -48,10 +48,12 @@ View(asthma.adult)
 ```
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
-
+dim(asthma.adult)
 ```
-
-
+The data set come from CDC with ulr = "https://www.cdc.gov/brfss/acbs/2016_documentation.html". It is a survey study.
+The download file is "2016 ACBS Adult Data SAS [ZIP – 3.10 MB]"
+The unzip file has 899 variables and 13,922 cases.
+We have selected the variables to use on our studies. 
 
 
 ## EXPLORATORY DATA ANALYSIS
@@ -185,11 +187,11 @@ asthma.mgt.adult1 <- data.frame(TCH.SIGN = asthma.adult$TCH_SIGN,
                                 SEX = asthma.adult$SEX,
                                 AGEG.F7 = asthma.adult$AGEG_F7,
                                 "RACE.GR3" = asthma.adult[, "_RACEGR3"],
-                                "EDUCA" = asthma.adult[, "_EDUCAG"],
+                                #"EDUCA" = asthma.adult[, "_EDUCAG"],
                                 EDUCAL = asthma.adult$EDUCA,
-                                INCOMEL = asthma.adult$INCOME2,
+                                #INCOMEL = asthma.adult$INCOME2,
                                 "INCOMG" = asthma.adult[, "_INCOMG"],
-                                "BMISCAT "= asthma.adult[, "_BMI5CAT"],
+                                #"BMISCAT "= asthma.adult[, "_BMI5CAT"],
                                 "RFBMIS" = asthma.adult[, "_RFBMI5"],
                                 SMOKE100 = asthma.adult$SMOKE100,
                                 COPD = asthma.adult$COPD,
@@ -198,24 +200,24 @@ asthma.mgt.adult1 <- data.frame(TCH.SIGN = asthma.adult$TCH_SIGN,
                                 BRONCH = asthma.adult$BRONCH,
                                 SYMP.30D = asthma.adult$SYMP_30D,
                                 DUR.30D = asthma.adult$DUR_30D,
-                                ASLEEP30 = asthma.adult$ASLEEP30,
-                                SYMPFREE = asthma.adult$SYMPFREE,
+                                #ASLEEP30 = asthma.adult$ASLEEP30,
+                                #SYMPFREE = asthma.adult$SYMPFREE,
                                 INCINDT = asthma.adult$INCIDNT,
                                 LAST.MD = asthma.adult$LAST_MD,
                                 LAST.MED = asthma.adult$LAST_MED,
                                 LAST.SYMP = asthma.adult$LASTSYMP,
                                 EPIS.12M = asthma.adult$EPIS_12M,
-                                EPIS.TP = asthma.adult$EPIS_TP,
-                                DUR.ASTH = asthma.adult$DUR_ASTH,
+                                #EPIS.TP = asthma.adult$EPIS_TP,
+                                #DUR.ASTH = asthma.adult$DUR_ASTH,
                                 COMPASTH = asthma.adult$COMPASTH,
                                 INS1 = asthma.adult$INS1,
                                 INS2 = asthma.adult$INS2,
-                                ER.TIMES = asthma.adult$ER_TIMES,
+                                #ER.TIMES = asthma.adult$ER_TIMES,
                                 ER.VISIT = asthma.adult$ER_VISIT,
-                                URG.TIMES = asthma.adult$URG_TIME,
+                                #URG.TIMES = asthma.adult$URG_TIME,
                                 HOSP.VST = asthma.adult$HOSP_VST,
-                                HOSPTIME = asthma.adult$HOSPTIME,
-                                HOSPPLAN = asthma.adult$HOSPPLAN,
+                                #HOSPTIME = asthma.adult$HOSPTIME,
+                                #HOSPPLAN = asthma.adult$HOSPPLAN,
                                 ASMDCOST = asthma.adult$ASMDCOST,
                                 ASRXCOST = asthma.adult$ASRXCOST,
                                 ASSPCOST = asthma.adult$ASSPCOST,
@@ -224,6 +226,21 @@ asthma.mgt.adult1 <- data.frame(TCH.SIGN = asthma.adult$TCH_SIGN,
 ```
 
 
+```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
+asthma.mgt.adult2 <- data.frame(apply(asthma.mgt.adult1, 2, as.factor ))
+summary(asthma.mgt.adult2)
+```
+
+
+
+```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
+# asthma.mgt.adult2 <- asthma.mgt.adult2 %>%
+#   mutate(TCH.SIGN = fct_collapse(TCH.SIGN,
+#                                  "1" = "1",
+#                                  "2" = "2",
+#                                  "7" = c("7", "9")))
+# summary(asthma.mgt.adult2$TCH.SIGN)
+```
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
 asth.mgt.ad.min <-  asthma.mgt.adult1 %>% filter(TCH.SIGN == 1 | TCH.SIGN == 2, 
@@ -241,28 +258,7 @@ dim(asth.mgt.ad.min)
 
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
-asth.mgt.ad.min2 <- asth.mgt.ad.min %>% filter(LAST.MD != 77 & LAST.MD != 99,
-                                               LAST.MED != 77 & LAST.MED != 99,
-                                               LAST.SYMP != 77 & LAST.SYMP != 99,LAST.SYMP != 88,
-                                               INCINDT != 7 & INCINDT != 9,
-                                               SYMP.30D != 77 & SYMP.30D != 99,
-                                               DUR.30D != 9 & DUR.30D != 99,
-                                               ASLEEP30 != 99, ASLEEP30 !=66, ASLEEP30 != 100, ASLEEP30 != 111,
-                                               EPIS.12M != 7 & EPIS.12M != 9,
-                                               COMPASTH != 7 & COMPASTH != 9,
-                                               INS1 != 7 & INS1 != 9,
-                                               ER.VISIT != 7 & ER.VISIT != 9,
-                                               ER.TIMES != 777 & ER.TIMES != 999,
-                                               URG.TIMES != 777 & URG.TIMES != 999,
-                                               HOSP.VST != 9,
-                                               HOSPTIME != 777
-                                               )
-```
-
-
-```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
-#asth.mgt.ad.min2 <- asth.mgt.ad.min
-
+asth.mgt.ad.min2 <- asth.mgt.ad.min
 # asth.mgt.ad.min2 <- asth.mgt.ad.min %>% filter(LAST.MD != 77 & LAST.MD != 99,
 #                                                LAST.MED != 77 & LAST.MED != 99,
 #                                                LAST.SYMP != 77 & LAST.SYMP != 99,LAST.SYMP != 88,
@@ -277,31 +273,16 @@ asth.mgt.ad.min2 <- asth.mgt.ad.min %>% filter(LAST.MD != 77 & LAST.MD != 99,
 #                                                ER.TIMES != 777 & ER.TIMES != 999,
 #                                                URG.TIMES != 777 & URG.TIMES != 999,
 #                                                HOSP.VST != 9,
-#                                                HOSPTIME != 777,
-#                                                SYMP.30D != 19,
-#                                                ASLEEP30 != 27,
-#                                                DUR.ASTH != 209, 
-#                                                DUR.ASTH != 311, 
-#                                                DUR.ASTH != 424,
-#                                                SYMP.30D != 26,
-#                                                DUR.ASTH != 127,
-#                                                DUR.ASTH != 321,
-#                                                DUR.ASTH != 213,
-#                                                DUR.ASTH != 407,
-#                                                DUR.ASTH != 317,
-#                                                ER.TIMES != 32,
-#                                                URG.TIMES != 28,
-#                                                URG.TIMES != 60,
-#                                                URG.TIMES != 9,
-#                                                DUR.ASTH != 116,
-#                                                URG.TIMES != 14)
+#                                                HOSPTIME != 777
+#                                                )
 ```
 
 
 
 
+
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
-asth.mgt.ad.min %>% select(DUR.ASTH) %>% filter(DUR.ASTH==0)
+# asth.mgt.ad.min %>% select(DUR.ASTH) %>% filter(DUR.ASTH==0)
 ```
 
 
@@ -336,8 +317,7 @@ Histograms tell us how the data is distributed in the dataset (numeric fields).
 multi.hist(asthma.mgt.adult1[1:9])
 multi.hist(asthma.mgt.adult1[10:18])
 multi.hist(asthma.mgt.adult1[19:27])
-multi.hist(asthma.mgt.adult1[28:36])
-multi.hist(asthma.mgt.adult1[37:45])
+multi.hist(asthma.mgt.adult1[28:34])
 ```
 
 
@@ -352,11 +332,11 @@ corrplot(cor_asthma.adult, order = 'hclust', type = 'lower')
 # cor(asthma.mgt.adult1[,-1], use = "na.or.complete")
 # write.csv(cor(asthma.mgt.adult1[,-1], use = "na.or.complete"), "predictors_cor.csv")
 ```
-We are removing the predictor X_BMISCAT because it has to much missing values 
+
 There are highly correlated predictors. We are going to remove some of them.
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, echo=FALSE, results='show'}
-asth.mgt.ad.min21 <- select(asth.mgt.ad.min2, -X_BMI5CAT, -INCOMEL, -X_EDUCAG, -EPIS.TP, -HOSPPLAN, -ASSPCOST, -ASMDCOST, -INS2)
+asth.mgt.ad.min21 <- select(asth.mgt.ad.min2, -ASSPCOST, -ASMDCOST)
 colnames(asth.mgt.ad.min21)
 ```
 
@@ -651,9 +631,9 @@ ggplot(egt, aes(x=EDUCAL, y=proportion, group=TARGET, linetype=TARGET))+geom_lin
 ```
 
 ```{r, eval=TRUE, message=FALSE, warning=FALSE, fig.cap= "Proportion of Good skill management in terme of Duration of Asthma Attack", echo=FALSE, results='show'}
-egt <- summarize(group_by(asth.mgt.ad.min35, DUR.ASTH, TARGET), count = n())
+egt <- summarize(group_by(asth.mgt.ad.min35, LAST.SYMP, TARGET), count = n())
 egt <- mutate(egt, etotal =sum(count), proportion= count/etotal)
-ggplot(data=egt, aes(x=DUR.ASTH, y=proportion, group=TARGET, linetype=TARGET))+geom_line()
+ggplot(data=egt, aes(x=LAST.SYMP, y=proportion, group=TARGET, linetype=TARGET))+geom_line()
 ```
 
 
@@ -987,10 +967,10 @@ prediction <- data.frame(TARGET = testing1$TARGET,
                          gml2 = glm12.pred, 
                          pls1 = pls1.pred,
                          pls2 = pls2.pred,
-                         rp1 = ridge.pred1[-1,], 
-                         rp2 = ridge.pred2[-1,], 
-                         lp1 = lasso.pred1[-1], 
-                         lp2 = lasso.pred2[-1,])
+                         rp1 = ridge.pred1, 
+                         rp2 = ridge.pred2, 
+                         lp1 = lasso.pred1, 
+                         lp2 = lasso.pred2)
 
 ```
 
